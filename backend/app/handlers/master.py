@@ -187,20 +187,26 @@ async def toggle_slot_callback(callback: types.CallbackQuery):
 # ============================================================
 
 @router.message(F.text == "📋 Мои записи")
-async def master_bookings(message: types.Message):
-    """Показывает мастеру его записи (клиентов)."""
-    master = get_master_by_telegram_id(message.from_user.id)
-    if not master:
-        await message.answer("⛔ Вы не зарегистрированы как мастер.")
-        return
+async def show_my_bookings(message: types.Message):
+    """Показывает записи: для клиента — его записи, для мастера — его клиентов."""
+    user_id = message.from_user.id
     
-    bookings = get_all_bookings(master_id=master['id'])
+    # Проверяем, является ли пользователь мастером
+    master = get_master_by_telegram_id(user_id)
+    if master:
+        # Мастер видит записи клиентов к нему
+        bookings = get_all_bookings(master_id=master['id'])
+        title = "📋 **Ваши записи (клиенты):**"
+    else:
+        # Клиент видит свои записи
+        bookings = get_user_bookings(user_id)
+        title = "📋 **Ваши записи:**"
     
     if not bookings:
         await message.answer("📭 У вас пока нет записей.")
         return
     
-    text = "📋 **Ваши записи (клиенты):**\n\n"
+    text = f"{title}\n\n"
     for b in bookings:
         text += (
             f"🆔 #{b['id']} | {b['username'] or 'Не указан'}\n"

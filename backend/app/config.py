@@ -25,6 +25,8 @@ class Config:
     # --- URL для Mini App ---
     WEBAPP_URL: str = os.getenv("WEBAPP_URL", "http://localhost:5173")
     API_URL: str = os.getenv("API_URL", "http://localhost:8000")
+
+    API_PORT: int = int(os.getenv("API_PORT", 8000))
     
     @classmethod
     def ensure_dirs(cls) -> None:

@@ -14,15 +14,19 @@ async def start_bot():
         print(f"❌ Ошибка бота: {e}")
 
 
-if __name__ == "__main__":
+async def main():
+    """Главная функция."""
     config.ensure_dirs()
     init_db()
     print("✅ База данных готова")
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.create_task(start_bot())
+    # Запускаем бота в фоне
+    bot_task = asyncio.create_task(start_bot())
 
+    # Запускаем API (блокирующий)
     print("📡 Запуск API...")
-    
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=config.API_PORT, reload=False)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
