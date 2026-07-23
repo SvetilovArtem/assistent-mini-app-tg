@@ -120,6 +120,23 @@ def init_db():
 # ============================================================
 # МАСТЕРА
 # ============================================================
+def get_master_by_id(master_id: int):
+    """Получает мастера по ID (для уведомлений)."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, telegram_id, name, phone, is_active FROM masters WHERE id = ?', (master_id,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return {
+            'id': row[0],
+            'telegram_id': row[1],
+            'name': row[2],
+            'phone': row[3],
+            'is_active': bool(row[4])
+        }
+    return None
+
 
 def get_master_by_telegram_id(telegram_id: int):
     """Получает мастера по Telegram ID."""
