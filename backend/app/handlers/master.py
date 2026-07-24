@@ -6,7 +6,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from ..config import config
-from ..database import (
+from ..db.queries import (
     get_master_by_telegram_id,
     get_master_slots,
     add_slot,

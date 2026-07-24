@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 
 from ..config import config
-from ..database import get_master_by_telegram_id
+from ..db.queries import get_master_by_telegram_id
 from ..keyboards.client import client_menu
 from ..keyboards.master import master_menu
 from ..keyboards.admin import admin_menu

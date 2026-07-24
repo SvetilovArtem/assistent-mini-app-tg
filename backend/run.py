@@ -1,7 +1,7 @@
 import asyncio
 import uvicorn
 from app.bot import dp, bot
-from app.database import init_db
+from app.db import init_db
 from app.config import config
 
 
@@ -21,11 +21,19 @@ async def main():
     print("✅ База данных готова")
 
     # Запускаем бота в фоне
-    bot_task = asyncio.create_task(start_bot())
+    asyncio.create_task(start_bot())
 
-    # Запускаем API (блокирующий)
+    # Запускаем API (используем awaitable-версию uvicorn)
     print("📡 Запуск API...")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=config.API_PORT, reload=False)
+    uvicorn_config = uvicorn.Config(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+        log_level="info"
+    )
+    server = uvicorn.Server(uvicorn_config)
+    await server.serve()
 
 
 if __name__ == "__main__":

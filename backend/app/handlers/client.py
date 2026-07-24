@@ -6,7 +6,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from ..config import config
-from ..database import (
+from ..db.queries import (
     get_all_services,
     get_all_masters,
     get_master_services,
