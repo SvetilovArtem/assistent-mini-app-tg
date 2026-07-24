@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import datetime
 from .connection import get_connection
 
@@ -52,7 +53,6 @@ def create_master(telegram_id: int, name: str, phone: str = None) -> int:
     return master_id
 
 def update_master(master_id: int, name: str = None, phone: str = None, is_active: bool = None) -> bool:
-    """Обновляет данные мастера."""
     conn = get_connection()
     cur = conn.cursor()
     
@@ -142,7 +142,6 @@ def assign_service_to_master(master_id: int, service_id: int, duration_modifier:
 # ============================================================
 
 def toggle_slot_availability(slot_id: int, master_id: int) -> bool:
-    """Включает/выключает доступность слота."""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute('SELECT is_available FROM slots WHERE id = ? AND master_id = ?', (slot_id, master_id))
@@ -157,14 +156,29 @@ def toggle_slot_availability(slot_id: int, master_id: int) -> bool:
     conn.close()
     return True
 
-
-def add_slot(master_id: int, date_str: str, time_str: str, service_id: int = None) -> int:
+def add_slot(master_id: int, date_str: str, start_time: str, end_time: str, service_id: int = None) -> int:
     conn = get_connection()
     cur = conn.cursor()
+    
+    # Проверяем пересечение с существующими слотами
+    cur.execute('''
+        SELECT id, time, end_time FROM slots 
+        WHERE master_id = ? AND date = ? AND is_active = 1
+    ''', (master_id, date_str))
+    
+    existing_slots = cur.fetchall()
+    for slot in existing_slots:
+        existing_start = slot[1]
+        existing_end = slot[2] or existing_start
+        
+        if start_time < existing_end and end_time > existing_start:
+            conn.close()
+            raise ValueError(f"Слот пересекается с существующим: {existing_start} - {existing_end}")
+    
     now = datetime.now().isoformat()
     cur.execute(
-        'INSERT INTO slots (master_id, date, time, service_id, is_available, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 1, ?, ?)',
-        (master_id, date_str, time_str, service_id, now, now)
+        'INSERT INTO slots (master_id, date, time, end_time, service_id, is_available, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)',
+        (master_id, date_str, start_time, end_time, service_id, now, now)
     )
     slot_id = cur.lastrowid
     conn.commit()
@@ -175,35 +189,39 @@ def get_available_slots(master_id: int, date_str: str):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        'SELECT time, service_id FROM slots WHERE master_id = ? AND date = ? AND is_available = 1 AND is_active = 1 ORDER BY time',
+        'SELECT time, end_time, service_id FROM slots WHERE master_id = ? AND date = ? AND is_available = 1 AND is_active = 1 ORDER BY time',
         (master_id, date_str)
     )
     rows = cur.fetchall()
     conn.close()
-    return [{'time': r[0], 'service_id': r[1]} for r in rows]
+    return [{'time': r[0], 'end_time': r[1], 'service_id': r[2]} for r in rows]
 
 def get_master_slots(master_id: int, date_str: str = None):
     conn = get_connection()
     cur = conn.cursor()
+    
     if date_str:
         cur.execute('''
-            SELECT id, time, service_id, is_available, is_active,
+            SELECT id, time, end_time, service_id, is_available, is_active,
                    (SELECT id FROM bookings WHERE master_id = ? AND date = ? AND time = slots.time AND status = 'active') as booking_id
             FROM slots
             WHERE master_id = ? AND date = ? AND is_active = 1
             ORDER BY time
         ''', (master_id, date_str, master_id, date_str))
+        rows = cur.fetchall()
+        conn.close()
+        return [{'id': r[0], 'time': r[1], 'end_time': r[2], 'service_id': r[3], 'is_available': bool(r[4]), 'is_active': bool(r[5]), 'booking_id': r[6]} for r in rows]
     else:
         cur.execute('''
-            SELECT id, date, time, service_id, is_available, is_active,
+            SELECT id, date, time, end_time, service_id, is_available, is_active,
                    (SELECT id FROM bookings WHERE master_id = ? AND date = slots.date AND time = slots.time AND status = 'active') as booking_id
             FROM slots
             WHERE master_id = ? AND is_active = 1
             ORDER BY date, time
         ''', (master_id, master_id))
-    rows = cur.fetchall()
-    conn.close()
-    return [{'id': r[0], 'time': r[1] if date_str else r[1], 'service_id': r[2], 'is_available': bool(r[3]), 'is_active': bool(r[4]), 'booking_id': r[5]} for r in rows]
+        rows = cur.fetchall()
+        conn.close()
+        return [{'id': r[0], 'date': r[1], 'time': r[2], 'end_time': r[3], 'service_id': r[4], 'is_available': bool(r[5]), 'is_active': bool(r[6]), 'booking_id': r[7]} for r in rows]
 
 def delete_slot(slot_id: int, master_id: int) -> bool:
     conn = get_connection()
@@ -233,18 +251,15 @@ def create_booking(user_id: int, username: str, phone: str, service_id: int, mas
     cur = conn.cursor()
     now = datetime.now().isoformat()
     
-    # Проверяем, что слот свободен
     cur.execute('SELECT id FROM slots WHERE master_id = ? AND date = ? AND time = ? AND is_available = 1 AND is_active = 1',
                 (master_id, date_str, time_str))
     if not cur.fetchone():
         conn.close()
         raise ValueError("Слот уже занят или недоступен")
     
-    # Помечаем слот как занятый
     cur.execute('UPDATE slots SET is_available = 0, updated_at = ? WHERE master_id = ? AND date = ? AND time = ? AND is_available = 1',
                 (now, master_id, date_str, time_str))
     
-    # Создаём запись
     cur.execute('''
         INSERT INTO bookings (user_id, username, phone, service_id, master_id, date, time, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)

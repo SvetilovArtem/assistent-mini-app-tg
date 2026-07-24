@@ -20,10 +20,9 @@ async def main():
     init_db()
     print("✅ База данных готова")
 
-    # Запускаем бота в фоне
     asyncio.create_task(start_bot())
 
-    # Запускаем API (используем awaitable-версию uvicorn)
+    # Запускаем API 
     print("📡 Запуск API...")
     uvicorn_config = uvicorn.Config(
         "app.main:app",

@@ -54,6 +54,7 @@ def init_db():
             master_id INTEGER NOT NULL,
             date TEXT NOT NULL,
             time TEXT NOT NULL,
+            end_time TEXT,
             service_id INTEGER,
             is_available INTEGER DEFAULT 1,
             is_active INTEGER DEFAULT 1,
@@ -92,6 +93,8 @@ def init_db():
             created_at TEXT NOT NULL
         )
     ''')
+
+    ensure_end_time_column()
     
     # --- Индексы ---
     cur.execute('CREATE INDEX IF NOT EXISTS idx_bookings_master_id ON bookings(master_id)')
@@ -103,3 +106,15 @@ def init_db():
     conn.commit()
     conn.close()
     print("✅ База данных инициализирована")
+
+def ensure_end_time_column():
+    """Проверяет наличие колонки end_time и добавляет её при необходимости."""
+    conn = get_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT end_time FROM slots LIMIT 1")
+    except sqlite3.OperationalError:
+        cur.execute("ALTER TABLE slots ADD COLUMN end_time TEXT")
+        conn.commit()
+        print("✅ Добавлена колонка end_time")
+    conn.close()

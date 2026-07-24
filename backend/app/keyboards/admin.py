@@ -6,7 +6,7 @@ admin_menu = ReplyKeyboardMarkup(
         [KeyboardButton(text="📊 Все записи")],
         [KeyboardButton(text="📈 Статистика")],
         [KeyboardButton(text="👑 Управление мастерами")],
-        [KeyboardButton(text="🔙 В главное меню")]
+        [KeyboardButton(text="🔄 Изменить роль")]
     ],
     resize_keyboard=True
 )
